@@ -1,4 +1,5 @@
 const express = require('express');
+const cors = require('cors');
 require('dotenv').config();
 const connectDB = require('../config/database');
 const prelaunchRoutes = require('./routes/prelaunch');
@@ -9,6 +10,9 @@ connectDB();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.use(cors({
+  origin: ['https://frootfast.vercel.app/', 'http://localhost:3000']
+}));
 app.use(express.json());
 
 app.get('/', (req, res) => {
