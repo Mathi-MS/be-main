@@ -4,6 +4,7 @@ require('dotenv').config();
 const connectDB = require('../config/database');
 const prelaunchRoutes = require('./routes/prelaunch');
 const contactRoutes = require('./routes/contact');
+const authRoutes = require('./routes/auth');
 
 connectDB();
 
@@ -21,6 +22,7 @@ app.get('/', (req, res) => {
 
 app.use('/api', prelaunchRoutes);
 app.use('/api', contactRoutes);
+app.use('/api', authRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
