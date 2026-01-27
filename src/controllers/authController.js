@@ -15,6 +15,12 @@ const gameLogin = async (req, res) => {
       return res.status(401).json({ error: 'Invalid access code' });
     }
 
+    // Check if access code is already used by someone else
+    const existingUser = await GameUser.findOne({ accessCode, isActive: true });
+    if (existingUser && existingUser.name !== name) {
+      return res.status(400).json({ error: 'Access code already used by another user' });
+    }
+
     // Check if user already has an active session with this access code (relogin)
     let gameUser = await GameUser.findOne({ name, accessCode, isActive: true });
     
@@ -24,7 +30,9 @@ const gameLogin = async (req, res) => {
         message: 'Game relogin successful',
         sessionId: gameUser._id,
         name: gameUser.name,
-        loginTime: gameUser.createdAt
+        loginTime: gameUser.createdAt,
+        scoreAndTime: !!(gameUser.score && gameUser.time),
+        personalityFruit: !!gameUser.personalityFruit
       });
     }
 
@@ -36,7 +44,9 @@ const gameLogin = async (req, res) => {
       message: 'Game login successful',
       sessionId: gameUser._id,
       name: gameUser.name,
-      loginTime: gameUser.createdAt
+      loginTime: gameUser.createdAt,
+      scoreAndTime: false,
+      personalityFruit: false
     });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -47,8 +57,8 @@ const updateQuizResult = async (req, res) => {
   try {
     const { sessionId, score, time, personalityFruit } = req.body;
     
-    if (!sessionId || !score || !time || !personalityFruit) {
-      return res.status(400).json({ error: 'All quiz result fields are required' });
+    if (!sessionId) {
+      return res.status(400).json({ error: 'Session ID is required' });
     }
 
     const gameUser = await GameUser.findById(sessionId);
@@ -56,14 +66,11 @@ const updateQuizResult = async (req, res) => {
       return res.status(404).json({ error: 'Game user not found' });
     }
 
-    // Check if quiz result already exists
-    if (gameUser.score || gameUser.time || gameUser.personalityFruit) {
-      return res.status(400).json({ error: 'Quiz result already submitted for this user' });
-    }
-
-    gameUser.score = score;
-    gameUser.time = time;
-    gameUser.personalityFruit = personalityFruit;
+    // Update only provided fields
+    if (score) gameUser.score = score;
+    if (time) gameUser.time = time;
+    if (personalityFruit) gameUser.personalityFruit = personalityFruit;
+    
     await gameUser.save();
 
     res.status(200).json({ 
