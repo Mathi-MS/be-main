@@ -30,9 +30,9 @@ const gameLogin = async (req, res) => {
         message: 'Game relogin successful',
         sessionId: gameUser._id,
         name: gameUser.name,
-        loginTime: gameUser.createdAt,
-        scoreAndTime: !!(gameUser.score && gameUser.time),
-        personalityFruit: !!gameUser.personalityFruit
+        personalityGame: gameUser.personalityGame,
+        groupGame: gameUser.groupGame,
+        loginTime: gameUser.createdAt
       });
     }
 
@@ -44,9 +44,9 @@ const gameLogin = async (req, res) => {
       message: 'Game login successful',
       sessionId: gameUser._id,
       name: gameUser.name,
-      loginTime: gameUser.createdAt,
-      scoreAndTime: false,
-      personalityFruit: false
+      personalityGame: false,
+      groupGame: false,
+      loginTime: gameUser.createdAt
     });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -66,10 +66,24 @@ const updateQuizResult = async (req, res) => {
       return res.status(404).json({ error: 'Game user not found' });
     }
 
-    // Update only provided fields
-    if (score) gameUser.score = score;
-    if (time) gameUser.time = time;
-    if (personalityFruit) gameUser.personalityFruit = personalityFruit;
+    // Personality game validation - only allow once
+    if (personalityFruit) {
+      if (gameUser.personalityFruit) {
+        return res.status(400).json({ error: 'Personality game already completed' });
+      }
+      gameUser.personalityFruit = personalityFruit;
+      gameUser.personalityGame = true;
+    }
+
+    // Group game validation - only allow once
+    if (score !== undefined && time !== undefined) {
+      if (gameUser.score !== null && gameUser.time !== null) {
+        return res.status(400).json({ error: 'Group game already completed' });
+      }
+      gameUser.score = parseInt(score);
+      gameUser.time = parseInt(time);
+      gameUser.groupGame = true;
+    }
     
     await gameUser.save();
 
@@ -79,7 +93,9 @@ const updateQuizResult = async (req, res) => {
         name: gameUser.name,
         score: gameUser.score,
         time: gameUser.time,
-        personalityFruit: gameUser.personalityFruit
+        personalityFruit: gameUser.personalityFruit,
+        personalityGame: gameUser.personalityGame,
+        groupGame: gameUser.groupGame
       }
     });
   } catch (error) {
@@ -90,24 +106,16 @@ const updateQuizResult = async (req, res) => {
 const getLeaderboard = async (req, res) => {
   try {
     const gameUsers = await GameUser.find({
-      score: { $ne: null },
-      time: { $ne: null }
+      personalityGame: true,
+      groupGame: true
     }).select('name score time');
 
-    // Sort by time (ascending) first, then by score (descending)
+    // Sort by score (descending) first, then by time (ascending)
     const sortedUsers = gameUsers.sort((a, b) => {
-      const [minA, secA] = a.time.split(':').map(Number);
-      const [minB, secB] = b.time.split(':').map(Number);
-      const totalSecondsA = minA * 60 + secA;
-      const totalSecondsB = minB * 60 + secB;
-      
-      if (totalSecondsA !== totalSecondsB) {
-        return totalSecondsA - totalSecondsB; // Lower time is better
+      if (a.score !== b.score) {
+        return b.score - a.score; // Higher score is better
       }
-      
-      const scoreA = parseInt(a.score.split('/')[0]);
-      const scoreB = parseInt(b.score.split('/')[0]);
-      return scoreB - scoreA; // Higher score is better
+      return a.time - b.time; // Lower time is better
     });
 
     const leaderboard = sortedUsers.map((user, index) => ({

@@ -12,16 +12,24 @@ const gameUserSchema = new mongoose.Schema({
     length: 6
   },
   time: {
-    type: String,
+    type: Number,
     default: null
   },
   score: {
-    type: String,
+    type: Number,
     default: null
   },
   personalityFruit: {
     type: String,
     default: null
+  },
+  personalityGame: {
+    type: Boolean,
+    default: false
+  },
+  groupGame: {
+    type: Boolean,
+    default: false
   },
   isActive: {
     type: Boolean,
